@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Music Wrapped</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: #ffffff;
+            color: #191414;
+            overflow-x: hidden;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        header {
+            margin-bottom: 80px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #191414;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #6b6b6b;
+            font-weight: 400;
+        }
+
+        .time-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 60px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .time-btn {
+            padding: 12px 0;
+            border: none;
+            background: none;
+            color: #6b6b6b;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+            font-family: inherit;
+        }
+
+        .time-btn:hover {
+            color: #191414;
+        }
+
+        .time-btn.active {
+            color: #191414;
+        }
+
+        .time-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #191414;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            margin-bottom: 80px;
+        }
+
+        .stat-card {
+            padding: 0;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #191414;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b6b6b;
+            font-weight: 400;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 48px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #ffffff;
+            padding: 0;
+        }
+
+        .card h2 {
+            margin-bottom: 24px;
+            font-size: 1.3rem;
+            color: #191414;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .top-list {
+            list-style: none;
+        }
+
+        .top-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f5f5f5;
+            transition: all 0.2s ease;
+        }
+
+        .top-item:last-child {
+            border-bottom: none;
+        }
+
+        .top-item:hover {
+            background: #fafafa;
+            margin: 0 -12px;
+            padding: 16px 12px;
+        }
+
+        .rank {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #191414;
+            margin-right: 20px;
+            min-width: 32px;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 500;
+            font-size: 1rem;
+            margin-bottom: 2px;
+            color: #191414;
+        }
+
+        .item-detail {
+            font-size: 0.85rem;
+            color: #6b6b6b;
+        }
+
+        .chart-container {
+            min-height: 300px;
+            position: relative;
+        }
+
+        .genre-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .genre-tag {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #191414;
+            transition: all 0.2s ease;
+        }
+
+        .genre-tag:hover {
+            background: #e8e8e8;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #191414;
+            color: #ffffff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .dashboard { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Your Music Wrapped</h1>
+            <p class="subtitle">2024</p>
+        </header>
+
+        <div class="time-selector">
+            <button class="time-btn active" data-period="year">Year</button>
+            <button class="time-btn" data-period="month">Month</button>
+            <button class="time-btn" data-period="week">Week</button>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalMinutes">52,847</div>
+                <div class="stat-label">Minutes listened</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalArtists">342</div>
+                <div class="stat-label">Artists</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalSongs">1,456</div>
+                <div class="stat-label">Songs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="topGenre">Indie Rock</div>
+                <div class="stat-label">Top genre</div>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>Top Artists</h2>
+                <ul class="top-list" id="topArtists">
+                    <li class="top-item">
+                        <div class="rank">1</div>
+                        <div class="item-info">
+                            <div class="item-name">The Weeknd</div>
+                            <div class="item-detail">1,247 plays · R&B</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">2</div>
+                        <div class="item-info">
+                            <div class="item-name">Arctic Monkeys</div>
+                            <div class="item-detail">1,089 plays · Indie Rock</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">3</div>
+                        <div class="item-info">
+                            <div class="item-name">Billie Eilish</div>
+                            <div class="item-detail">967 plays · Alt Pop</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">4</div>
+                        <div class="item-info">
+                            <div class="item-name">Tame Impala</div>
+                            <div class="item-detail">856 plays · Psychedelic</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">5</div>
+                        <div class="item-info">
+                            <div class="item-name">Drake</div>
+                            <div class="item-detail">743 plays · Hip Hop</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Top Tracks</h2>
+                <ul class="top-list" id="topTracks">
+                    <li class="top-item">
+                        <div class="rank">1</div>
+                        <div class="item-info">
+                            <div class="item-name">Blinding Lights</div>
+                            <div class="item-detail">The Weeknd · 234 plays</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">2</div>
+                        <div class="item-info">
+                            <div class="item-name">505</div>
+                            <div class="item-detail">Arctic Monkeys · 198 plays</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">3</div>
+                        <div class="item-info">
+                            <div class="item-name">bad guy</div>
+                            <div class="item-detail">Billie Eilish · 187 plays</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">4</div>
+                        <div class="item-info">
+                            <div class="item-name">The Less I Know</div>
+                            <div class="item-detail">Tame Impala · 156 plays</div>
+                        </div>
+                    </li>
+                    <li class="top-item">
+                        <div class="rank">5</div>
+                        <div class="item-info">
+                            <div class="item-name">One Dance</div>
+                            <div class="item-detail">Drake · 142 plays</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Listening Activity</h2>
+                <div class="chart-container" id="activityChart"></div>
+            </div>
+
+            <div class="card">
+                <h2>Genre Distribution</h2>
+                <div class="chart-container" id="genreChart"></div>
+            </div>
+
+            <div class="card">
+                <h2>Listening Hours</h2>
+                <div class="chart-container" id="hourChart"></div>
+            </div>
+
+            <div class="card">
+                <h2>Top Genres</h2>
+                <div class="genre-tags" id="genreTags">
+                    <div class="genre-tag">Indie Rock</div>
+                    <div class="genre-tag">R&B</div>
+                    <div class="genre-tag">Hip Hop</div>
+                    <div class="genre-tag">Alt Pop</div>
+                    <div class="genre-tag">Electronic</div>
+                    <div class="genre-tag">Psychedelic</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        const data = {
+            year: {
+                totalMinutes: 52847,
+                totalArtists: 342,
+                totalSongs: 1456,
+                topGenre: "Indie Rock",
+                topArtists: [
+                    { name: "The Weeknd", plays: 1247, genre: "R&B" },
+                    { name: "Arctic Monkeys", plays: 1089, genre: "Indie Rock" },
+                    { name: "Billie Eilish", plays: 967, genre: "Alt Pop" },
+                    { name: "Tame Impala", plays: 856, genre: "Psychedelic" },
+                    { name: "Drake", plays: 743, genre: "Hip Hop" }
+                ],
+                topTracks: [
+                    { name: "Blinding Lights", artist: "The Weeknd", plays: 234 },
+                    { name: "505", artist: "Arctic Monkeys", plays: 198 },
+                    { name: "bad guy", artist: "Billie Eilish", plays: 187 },
+                    { name: "The Less I Know", artist: "Tame Impala", plays: 156 },
+                    { name: "One Dance", artist: "Drake", plays: 142 }
+                ],
+                activity: [
+                    { month: "Jan", plays: 4200 },
+                    { month: "Feb", plays: 3800 },
+                    { month: "Mar", plays: 5100 },
+                    { month: "Apr", plays: 4600 },
+                    { month: "May", plays: 5400 },
+                    { month: "Jun", plays: 4900 },
+                    { month: "Jul", plays: 5800 },
+                    { month: "Aug", plays: 5200 },
+                    { month: "Sep", plays: 4400 },
+                    { month: "Oct", plays: 5600 },
+                    { month: "Nov", plays: 6100 },
+                    { month: "Dec", plays: 4300 }
+                ],
+                genres: [
+                    { name: "Indie Rock", value: 28 },
+                    { name: "R&B", value: 22 },
+                    { name: "Hip Hop", value: 18 },
+                    { name: "Alt Pop", value: 15 },
+                    { name: "Electronic", value: 10 },
+                    { name: "Other", value: 7 }
+                ],
+                hourly: [
+                    { hour: "12AM", plays: 450 },
+                    { hour: "3AM", plays: 200 },
+                    { hour: "6AM", plays: 350 },
+                    { hour: "9AM", plays: 800 },
+                    { hour: "12PM", plays: 1200 },
+                    { hour: "3PM", plays: 1400 },
+                    { hour: "6PM", plays: 1600 },
+                    { hour: "9PM", plays: 1800 }
+                ],
+                genreTags: ["Indie Rock", "R&B", "Hip Hop", "Alt Pop", "Electronic", "Psychedelic"]
+            },
+            month: {
+                totalMinutes: 4823,
+                totalArtists: 87,
+                totalSongs: 234,
+                topGenre: "R&B",
+                topArtists: [
+                    { name: "SZA", plays: 145, genre: "R&B" },
+                    { name: "Bad Bunny", plays: 132, genre: "Latin" },
+                    { name: "Taylor Swift", plays: 118, genre: "Pop" },
+                    { name: "The Weeknd", plays: 104, genre: "R&B" },
+                    { name: "Metro Boomin", plays: 89, genre: "Hip Hop" }
+                ],
+                topTracks: [
+                    { name: "Kill Bill", artist: "SZA", plays: 67 },
+                    { name: "Un x100to", artist: "Bad Bunny", plays: 54 },
+                    { name: "Anti-Hero", artist: "Taylor Swift", plays: 48 },
+                    { name: "Die For You", artist: "The Weeknd", plays: 42 },
+                    { name: "Superhero", artist: "Metro Boomin", plays: 38 }
+                ],
+                activity: [
+                    { month: "Week 1", plays: 1200 },
+                    { month: "Week 2", plays: 1400 },
+                    { month: "Week 3", plays: 980 },
+                    { month: "Week 4", plays: 1243 }
+                ],
+                genres: [
+                    { name: "R&B", value: 32 },
+                    { name: "Pop", value: 25 },
+                    { name: "Hip Hop", value: 20 },
+                    { name: "Latin", value: 15 },
+                    { name: "Rock", value: 8 }
+                ],
+                hourly: [
+                    { hour: "12AM", plays: 45 },
+                    { hour: "3AM", plays: 20 },
+                    { hour: "6AM", plays: 35 },
+                    { hour: "9AM", plays: 90 },
+                    { hour: "12PM", plays: 140 },
+                    { hour: "3PM", plays: 160 },
+                    { hour: "6PM", plays: 180 },
+                    { hour: "9PM", plays: 210 }
+                ],
+                genreTags: ["R&B", "Pop", "Hip Hop", "Latin", "Rock"]
+            },
+            week: {
+                totalMinutes: 1247,
+                totalArtists: 34,
+                totalSongs: 89,
+                topGenre: "Hip Hop",
+                topArtists: [
+                    { name: "Travis Scott", plays: 42, genre: "Hip Hop" },
+                    { name: "Frank Ocean", plays: 38, genre: "R&B" },
+                    { name: "Mac Miller", plays: 34, genre: "Hip Hop" },
+                    { name: "Doja Cat", plays: 29, genre: "Pop" },
+                    { name: "21 Savage", plays: 25, genre: "Hip Hop" }
+                ],
+                topTracks: [
+                    { name: "FE!N", artist: "Travis Scott", plays: 18 },
+                    { name: "Thinkin Bout You", artist: "Frank Ocean", plays: 16 },
+                    { name: "Self Care", artist: "Mac Miller", plays: 14 },
+                    { name: "Paint The Town Red", artist: "Doja Cat", plays: 12 },
+                    { name: "redrum", artist: "21 Savage", plays: 11 }
+                ],
+                activity: [
+                    { month: "Mon", plays: 145 },
+                    { month: "Tue", plays: 178 },
+                    { month: "Wed", plays: 156 },
+                    { month: "Thu", plays: 192 },
+                    { month: "Fri", plays: 234 },
+                    { month: "Sat", plays: 267 },
+                    { month: "Sun", plays: 201 }
+                ],
+                genres: [
+                    { name: "Hip Hop", value: 40 },
+                    { name: "R&B", value: 25 },
+                    { name: "Pop", value: 20 },
+                    { name: "Rock", value: 10 },
+                    { name: "Electronic", value: 5 }
+                ],
+                hourly: [
+                    { hour: "12AM", plays: 12 },
+                    { hour: "3AM", plays: 5 },
+                    { hour: "6AM", plays: 8 },
+                    { hour: "9AM", plays: 25 },
+                    { hour: "12PM", plays: 40 },
+                    { hour: "3PM", plays: 45 },
+                    { hour: "6PM", plays: 52 },
+                    { hour: "9PM", plays: 58 }
+                ],
+                genreTags: ["Hip Hop", "R&B", "Pop", "Rock", "Electronic"]
+            }
+        };
+
+        let currentPeriod = 'year';
+        const tooltip = d3.select('#tooltip');
+
+        function updateStats(period) {
+            const d = data[period];
+            document.getElementById('totalMinutes').textContent = d.totalMinutes.toLocaleString();
+            document.getElementById('totalArtists').textContent = d.totalArtists.toLocaleString();
+            document.getElementById('totalSongs').textContent = d.totalSongs.toLocaleString();
+            document.getElementById('topGenre').textContent = d.topGenre;
+        }
+
+        function updateTopLists(period) {
+            const d = data[period];
+            
+            const artistsList = document.getElementById('topArtists');
+            artistsList.innerHTML = d.topArtists.map((artist, i) => `
+                <li class="top-item">
+                    <div class="rank">${i + 1}</div>
+                    <div class="item-info">
+                        <div class="item-name">${artist.name}</div>
+                        <div class="item-detail">${artist.plays.toLocaleString()} plays · ${artist.genre}</div>
+                    </div>
+                </li>
+            `).join('');
+            
+            const tracksList = document.getElementById('topTracks');
+            tracksList.innerHTML = d.topTracks.map((track, i) => `
+                <li class="top-item">
+                    <div class="rank">${i + 1}</div>
+                    <div class="item-info">
+                        <div class="item-name">${track.name}</div>
+                        <div class="item-detail">${track.artist} · ${track.plays.toLocaleString()} plays</div>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function updateGenreTags(period) {
+            const d = data[period];
+            const genreTagsContainer = document.getElementById('genreTags');
+            genreTagsContainer.innerHTML = d.genreTags.map(genre => 
+                `<div class="genre-tag">${genre}</div>`
+            ).join('');
+        }
+
+        function createActivityChart(period) {
+            const container = document.getElementById('activityChart');
+            container.innerHTML = '';
+            
+            const margin = {top: 20, right: 20, bottom: 40, left: 50};
+            const width = container.offsetWidth - margin.left - margin.right;
+            const height = 280 - margin.top - margin.bottom;
+            
+            const svg = d3.select('#activityChart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const d = data[period].activity;
+            
+            const x = d3.scaleBand()
+                .range([0, width])
+                .domain(d.map(d => d.month))
+                .padding(0.3);
+            
+            const y = d3.scaleLinear()
+                .range([height, 0])
+                .domain([0, d3.max(d, d => d.plays) * 1.1]);
+            
+            svg.selectAll('.bar')
+                .data(d)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar')
+                .attr('x', d => x(d.month))
+                .attr('y', height)
+                .attr('width', x.bandwidth())
+                .attr('height', 0)
+                .attr('fill', '#191414')
+                .attr('rx', 4)
+                .on('mouseover', function(event, d) {
+                    d3.select(this).attr('fill', '#535353');
+                    tooltip
+                        .style('opacity', 1)
+                        .html(`<strong>${d.month}</strong><br/>${d.plays.toLocaleString()} plays`)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 30) + 'px');
+                })
+                .on('mouseout', function() {
+                    d3.select(this).attr('fill', '#191414');
+                    tooltip.style('opacity', 0);
+                })
+                .transition()
+                .duration(800)
+                .attr('y', d => y(d.plays))
+                .attr('height', d => height - y(d.plays));
+            
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+                .style('color', '#6b6b6b')
+                .select('.domain')
+                .attr('stroke', '#e8e8e8');
+            
+            svg.selectAll('.tick line').attr('stroke', '#e8e8e8');
+            
+            svg.append('g')
+                .call(d3.axisLeft(y).ticks(5).tickFormat(d => d.toLocaleString()))
+                .style('color', '#6b6b6b')
+                .select('.domain')
+                .attr('stroke', '#e8e8e8');
+            
+            svg.selectAll('.tick line').attr('stroke', '#e8e8e8');
+        }
+
+        function createGenreChart(period) {
+            const container = document.getElementById('genreChart');
+            container.innerHTML = '';
+            
+            const width = container.offsetWidth;
+            const height = 280;
+            const radius = Math.min(width, height) / 2 - 30;
+            
+            const svg = d3.select('#genreChart')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .append('g')
+                .attr('transform', `translate(${width/2},${height/2})`);
+            
+            const color = d3.scaleOrdinal()
+                .domain(data[period].genres.map(d => d.name))
+                .range(['#191414', '#2a2a2a', '#3d3d3d', '#535353', '#6b6b6b', '#8a8a8a']);
+            
+            const pie = d3.pie()
+                .value(d => d.value)
+                .sort(null);
+            
+            const arc = d3.arc()
+                .innerRadius(radius * 0.6)
+                .outerRadius(radius);
+            
+            const arcHover = d3.arc()
+                .innerRadius(radius * 0.6)
+                .outerRadius(radius * 1.05);
+            
+            const arcs = svg.selectAll('.arc')
+                .data(pie(data[period].genres))
+                .enter()
+                .append('g')
+                .attr('class', 'arc');
+            
+            arcs.append('path')
+                .attr('d', arc)
+                .attr('fill', d => color(d.data.name))
+                .on('mouseover', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr('d', arcHover);
+                    tooltip
+                        .style('opacity', 1)
+                        .html(`<strong>${d.data.name}</strong><br/>${d.data.value}%`)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 30) + 'px');
+                })
+                .on('mouseout', function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr('d', arc);
+                    tooltip.style('opacity', 0);
+                })
+                .transition()
+                .duration(800)
+                .attrTween('d', function(d) {
+                    const i = d3.interpolate({startAngle: 0, endAngle: 0}, d);
+                    return function(t) {
+                        return arc(i(t));
+                    };
+                });
+        }
+
+        function createHourChart(period) {
+            const container = document.getElementById('hourChart');
+            container.innerHTML = '';
+            
+            const margin = {top: 20, right: 20, bottom: 40, left: 50};
+            const width = container.offsetWidth - margin.left - margin.right;
+            const height = 280 - margin.top - margin.bottom;
+            
+            const svg = d3.select('#hourChart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const d = data[period].hourly;
+            
+            const x = d3.scaleBand()
+                .range([0, width])
+                .domain(d.map(d => d.hour))
+                .padding(0.2);
+            
+            const y = d3.scaleLinear()
+                .range([height, 0])
+                .domain([0, d3.max(d, d => d.plays) * 1.1]);
+            
+            const line = d3.line()
+                .x(d => x(d.hour) + x.bandwidth() / 2)
+                .y(d => y(d.plays))
+                .curve(d3.curveMonotoneX);
+            
+            svg.append('path')
+                .datum(d)
+                .attr('fill', 'none')
+                .attr('stroke', '#191414')
+                .attr('stroke-width', 2)
+                .attr('d', line);
+            
+            svg.selectAll('.dot')
+                .data(d)
+                .enter()
+                .append('circle')
+                .attr('cx', d => x(d.hour) + x.bandwidth() / 2)
+                .attr('cy', d => y(d.plays))
+                .attr('r', 4)
+                .attr('fill', '#191414')
+                .on('mouseover', function(event, d) {
+                    d3.select(this).attr('r', 6);
+                    tooltip
+                        .style('opacity', 1)
+                        .html(`<strong>${d.hour}</strong><br/>${d.plays.toLocaleString()} plays`)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 30) + 'px');
+                })
+                .on('mouseout', function() {
+                    d3.select(this).attr('r', 4);
+                    tooltip.style('opacity', 0);
+                });
+            
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+                .style
